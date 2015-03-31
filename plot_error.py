@@ -1,11 +1,14 @@
 """
-Plot: True error/dataset size
+Support Vector Machine with Gaussian/Linear/Sigmoid kernel
 
-Determine if machine learning parameters are properly adjusted (when error is low)
-Determine if a bigger dataset is helpfull (if gap is big)
+plot True-error/Dataset-size
+print accuracy & f-score
+print&save precision/recall-table to /reports
 """
 
+from sklearn import metrics
 from sklearn.svm import SVC
+import os
 import learning_curves as lc
 import pandas as pd
 
@@ -18,17 +21,43 @@ y_column = "Cover_Type"
 train_set = pd.read_csv(data_path + "training_set.csv")
 test_set = pd.read_csv(data_path + "test_set.csv")
 
-# select attributes
-train_X = train_set[X_columns].values
-train_y = train_set[y_column].values
-test_X = test_set[X_columns].values
-test_y = test_set[y_column].values
+# split
+X_train = train_set[X_columns].values
+y_train = train_set[y_column].values
+X_test = test_set[X_columns].values
+y_test = test_set[y_column].values
 
-# support vector classification
-clf = SVC(kernel="linear", C=3.5, cache_size=1000)
-response = lc.test_error(clf, train_X, train_y, test_X, test_y)
-lc.plot_test_error(*response, title="SVM with linear kernel")
+# Create report/ directory
+if not os.path.exists(data_path + "report/"):
+    os.makedirs(data_path + "report/")
 
-clf = SVC(kernel="rbf", C=2.7, gamma=0.65, cache_size=1000)
-response = lc.test_error(clf, train_X, train_y, test_X, test_y)
+# setup SVM with gaussian kernel & plot error
+clf = SVC(kernel="rbf", C=50, gamma=0.2, cache_size=1000)
+response = lc.test_error(clf, X_train, y_train, X_test, y_test)
 lc.plot_test_error(*response, title="SVM with gaussian kernel")
+clf.fit(X_train, y_train)
+y_pred, y_true = y_test, clf.predict(X_test)
+print "accuracy: %.5f" % metrics.accuracy_score(y_true, y_pred)
+print "f-score: %.5f" % metrics.f1_score(y_true, y_pred)
+lc.print_report(y_test, y_true)
+lc.get_precision_recall_table(y_test, y_true).to_csv(data_path + "report/Gaussian SVM report.csv")
+
+# setup SVM with linear kernel & plot error
+clf = SVC(kernel="linear", C=3.5, cache_size=1000)
+response = lc.test_error(clf, X_train, y_train, X_test, y_test)
+lc.plot_test_error(*response, title="SVM with linear kernel")
+y_pred, y_true = y_test, clf.predict(X_test)
+print "accuracy: %.5f" % metrics.accuracy_score(y_true, y_pred)
+print "f-score: %.5f" % metrics.f1_score(y_true, y_pred)
+lc.print_report(y_test, y_true)
+lc.get_precision_recall_table(y_test, y_true).to_csv(data_path + "report/Linear SVM report.csv")
+
+# setup SVM with sigmoid kernel & plot error
+clf = SVC(kernel="sigmoid", C=1000, gamma=0.001, cache_size=1000)
+response = lc.test_error(clf, X_train, y_train, X_test, y_test)
+lc.plot_test_error(*response, title="SVM with sigmoid kernel")
+y_pred, y_true = y_test, clf.predict(X_test)
+print "accuracy: %.5f" % metrics.accuracy_score(y_true, y_pred)
+print "f-score: %.5f" % metrics.f1_score(y_true, y_pred)
+lc.print_report(y_test, y_true)
+lc.get_precision_recall_table(y_test, y_true).to_csv(data_path + "report/Sigmoid SVM report.csv")

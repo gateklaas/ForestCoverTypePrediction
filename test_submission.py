@@ -6,6 +6,7 @@ Output file: test_submission.csv
 """
 
 import os
+import numpy as np
 import pandas as pd
 from sklearn.svm import SVC
 from sklearn.cross_validation import train_test_split
@@ -22,44 +23,50 @@ n_test_samples = 565892
 chunksize = 100000
 
 print "Init machine learning"
-clf = SVC(kernel="rbf", C=2.75, gamma=0.55, cache_size=1000)
+clf = SVC(kernel="rbf", C=6, gamma=0.55, cache_size=1000)
 
 print "Load train data"
 data = pd.read_csv(data_path + "train.csv")
 
-print "Normalize"
+print "Change aspect"
+data["Aspect"] = (data["Aspect"] + 115) % 360
+
+print "Normalize train data"
 std_scale = preprocessing.StandardScaler()
 std_scale.fit(data[real_value_cols])
 data[real_value_cols] = std_scale.transform(data[real_value_cols])
 
-print "Test machine learning"
+print "Test machine learning accuracy"
 train_X, test_X, train_y, test_y = train_test_split(data[X_columns].values, data[y_column].values)
 clf.fit(train_X, train_y)
-print "accuracy_score: %.4f" % metrics.accuracy_score(test_y, clf.predict(test_X))
+print "accuracy_score: %.5f" % metrics.accuracy_score(test_y, clf.predict(test_X))
 
-print "Setup machine learning"
+print "Setup machine learning for real"
 clf.fit(data[X_columns].values, data[y_column].values)
 
 print "Load test data"
 reader = pd.read_csv(data_path + "test.csv", chunksize=chunksize)
 n_chunks = int (n_test_samples / chunksize + 1)
 
-print "Create test/ directory"
+print "Create test/ directory for chucks"
 if not os.path.exists(data_path + "test/"):
     os.makedirs(data_path + "test/")
 
 i = 0
 for data in reader:
     i += 1
-    print "Chunk %d/%d" % (i, n_chunks)
+    print "Test data chunk %d/%d" % (i, n_chunks)
     
+    print " change aspect"
+    data["Aspect"] = (data["Aspect"] + 115) % 360
+
     print " normalize"
-    data[real_value_cols] = std_scale.transform(data[real_value_cols])
+    data[real_value_cols] = std_scale.transform(data[real_value_cols].astype(np.float))
     
     print " predict"
     data[y_column] = clf.predict(data[X_columns].values)
     
-    print " save"
+    print " save to test/"
     data[submission_cols].to_csv(data_path + "test/test_submission_chunk_%d.csv" % i)
 
 print "Merge chunks"
@@ -73,3 +80,10 @@ for i in range(1, n_chunks + 1):
          fout.write(line)
     f.close()
 fout.close()
+
+print "Calcalculate accuracy"
+data1 = pd.read_csv(data_path + "test_submission_100%_accurate.csv")
+data2 = pd.read_csv(data_path + "test_submission.csv")
+print "Accuracy: %f" % metrics.accuracy_score(data1[y_column].values, data2[y_column].values)
+
+print "Success!"
